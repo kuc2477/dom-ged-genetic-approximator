@@ -11,7 +11,7 @@ DISPLAY_BEST_K = 2
 # TODO: CODE BELOW IS JUST A SIMPLE SKELTON FOR LATER FULL IMPLEMENTATION.
 #       FOLLOWING FUNCTIONS AND SCHEMES SHOULD BE IMLEMENTED ACCORDINGLY.
 #
-#       - Possible graph editing steps.
+#       - Design possible graph editing step schema.
 #       - `Individual` representing a sequence of elementary graph editing steps.
 #       - `mate` function that crossovers two sequences of elementary graph editing steps.
 #       - `mutate` function that mutates a sequence of elementary graph editing steps.
