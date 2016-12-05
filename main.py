@@ -8,6 +8,16 @@ GENERATION_NUM = 50
 DISPLAY_BEST_K = 2
 
 
+class Step(object):
+    M = 'MODIFY'
+    D = 'DELETE'
+    A = 'APPEND'
+
+    def __init__(self, type, content=None):
+        self.type = type
+        self.content = content
+
+
 # TODO: CODE BELOW IS JUST A SIMPLE SKELTON FOR LATER FULL IMPLEMENTATION.
 #       FOLLOWING FUNCTIONS AND SCHEMES SHOULD BE IMLEMENTED ACCORDINGLY.
 #
@@ -16,7 +26,6 @@ DISPLAY_BEST_K = 2
 #       - `mate` function that crossovers two sequences of elementary graph editing steps.
 #       - `mutate` function that mutates a sequence of elementary graph editing steps.
 #       - `evaluate` function that evaluates a length of the sequence.
-#
 if __name__ == '__main__':
     creator.create('FitnessMin', base.Fitness, weights=(1.0,))
     creator.create('Individual', list, fitness=creator.FitnessMin)
