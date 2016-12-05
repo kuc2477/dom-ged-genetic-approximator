@@ -8,6 +8,15 @@ GENERATION_NUM = 50
 DISPLAY_BEST_K = 2
 
 
+# TODO: CODE BELOW IS JUST A SIMPLE SKELTON FOR LATER FULL IMPLEMENTATION.
+#       FOLLOWING FUNCTIONS AND SCHEMES SHOULD BE IMLEMENTED ACCORDINGLY.
+#
+#       - Possible graph editing steps.
+#       - `Individual` representing a sequence of elementary graph editing steps.
+#       - `mate` function that crossovers two sequences of elementary graph editing steps.
+#       - `mutate` function that mutates a sequence of elementary graph editing steps.
+#       - `evaluate` function that evaluates a length of the sequence.
+#
 if __name__ == '__main__':
     creator.create('FitnessMin', base.Fitness, weights=(1.0,))
     creator.create('Individual', list, fitness=creator.FitnessMin)
