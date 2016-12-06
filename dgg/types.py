@@ -10,7 +10,10 @@ class Step(object):
 
     @classmethod
     def generate(cls, tree_from, tree_to, type):
-        # TODO: NOT IMPLEMENTED YET
+        # TODO: SHOULD GENERATE a step which has a appropriate target index
+        #       that's compatible with current tree. Combination of name, 
+        #       content and attributes also should be choosen carefully
+        #       within tree_to's conditions.
         pass
 
     def __init__(self, type, target, name=None, content=None, attributes=None):
@@ -101,7 +104,8 @@ class DOMTree(object):
         return previous
 
     def _modify(self, step):
-        # TODO: MODIFY SHOULD ONLY CHANGE ATTRIBUTES OR NAME OF A NODE
+        # TODO: MODIFY SHOULD ONLY CHANGE ATTRIBUTES, NAME or STRING CONTENT 
+        #       OF A NODE
         tag = self._new_tag(step)
         current = self._get_tag(step.target)
         previous = copy.deepcopy(current)
