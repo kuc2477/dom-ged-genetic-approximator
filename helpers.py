@@ -1,3 +1,4 @@
+import random
 import requests
 from dgg.types import DOMTree, Step
 
@@ -26,5 +27,5 @@ This is the <em>second</em> bullet.
 </html>
 '''
 tree = DOMTree(html)
-append_step = Step(Step.A, content='asdfasdfasdfasdfasdf')
-delete_step = Step(Step.D)
+append_step = Step(Step.A, random.random(), content='asdfasdfasdfasdfasdf')
+delete_step = Step(Step.D, random.random())
