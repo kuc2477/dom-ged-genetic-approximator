@@ -21,6 +21,9 @@ This is a regular text paragraph.
 First bullet of a bullet list.
 </li>
 <li>
+First bullet of a bullet list.
+</li>
+<li>
 This is the <em>second</em> bullet. 
 </li>
 </ul>
@@ -54,4 +57,15 @@ tree1 = DOMTree(html1)
 tree2 = DOMTree(html2)
 append_step = Step(Step.A, len(tree1), content='asdfasdfasdfasdfasdf')
 delete_step = Step(Step.D, len(tree1))
-dumb_steps = dumb_deletion_steps_for(tree1)
+dumb_deletion_steps = dumb_deletion_steps_for(tree1)
+dumb_creation_steps = dumb_creation_steps_for(tree2)
+
+
+for s in dumb_deletion_steps:
+    tree1.step_forward(s)
+
+for s in dumb_creation_steps:
+    print('\n------------------\n')
+    print(tree1)
+    print(s)
+    tree1.step_forward(s)

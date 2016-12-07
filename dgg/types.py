@@ -47,19 +47,24 @@ class Step(object):
 
     def __str__(self):
         if self.type == Step.W:
-            return '{}{}[{}, {}]'.format(
+            return '{}{}[{}][{}]'.format(
                 self.type,
                 self.target,
                 self.name,
                 self.attrs,
             )
         elif self.type in (Step.A, Step.M):
-            return '{}{}[{},{},{}]'.format(
-                self.type, 
-                self.target,
-                self.name, 
-                self.content[:10] + '..',
-                self.attrs,
+            # truncate some contents for your eyes
+            if self.content and len(self.content) > 10:
+                truncated = repr(self.content[:10].strip() + '..')
+            elif self.content:
+                truncated = repr(self.content)
+            else:
+                truncated = ''
+
+            return '{}{}[{}][{}][{}]'.format(
+                self.type, self.target, self.name, 
+                truncated, self.attrs,
             )
         else:
             return '{}{}'.format(self.type, self.target)
@@ -72,7 +77,8 @@ class Step(object):
             return False
 
         if self.type in (Step.A, Step.M):
-            return self.name == other.name and \
+            return self.target == other.target and \
+                self.name == other.name and \
                 self.content == other.content and \
                 self.attrs == other.attrs
         else:
@@ -88,7 +94,7 @@ class DOMTree(object):
         self._cache_validities = {}
 
     def step_forward(self, step):
-        if not self._find_all() and step.type != Step.A:
+        if not len(self) and step.type != Step.A:
             return
 
         if step.type == Step.W:
@@ -103,12 +109,22 @@ class DOMTree(object):
         # record the step and applied node
         self._steps_applied.append(step)
         self._nodes_applied.append(node_applied)
-        self._invalidate_cache('_find_all')
+        self._invalidate_cache('descendants')
         return self
 
     @property
     def soup(self):
         return self._soup
+
+    @property
+    def descendants(self):
+        cache = self._get_cache('descendants')
+        if cache:
+            return cache
+        else:
+            descendants = list(self._soup.descendants)
+            self._set_cache('descendants', descendants)
+            return descendants
 
     @property
     def steps_applied(self):
@@ -136,18 +152,18 @@ class DOMTree(object):
         current = self._get_tag(step.target)
         previous = copy.deepcopy(current)
         # unwrap if the target has any children.
-        if current.find_all(string=False):
+        if isinstance(current, Tag) and current.contents:
             current.unwrap()
-        # otherwise decompose the node.
+        # otherwise extract the node.
         else:
-            current.decompose()
+            current.extract()
         return previous
 
     def _modify(self, step):
         current = self._get_tag(step.target)
         previous = copy.deepcopy(current)
         # modify attributes and tag name if the target has any children.
-        if current.find_all(string=False):
+        if isinstance(current, Tag) and current.contents:
             current.name = step.name
             current.attrs = step.attrs
         # otherwise replace the entire target with new tag.
@@ -166,7 +182,7 @@ class DOMTree(object):
             if step.content:
                 tag.append(step.content)
         else:
-            tag = step.content
+            tag = NavigableString(step.content)
         return tag
 
     def _get_tag(self, target):
@@ -174,23 +190,12 @@ class DOMTree(object):
         if target >= len(self):
             target = len(self) - 1
         try:
-            return self._find_all()[target]
+            return self.descendants[target]
         except IndexError:
             return self.soup
 
-    def _find_all(self, *args, **kwargs):
-        cache = self._get_cache('_find_all')
-        if cache:
-            return cache
-        else:
-            if kwargs.get('string') is None:
-                kwargs['string'] = False
-            nodes = self._soup.find_all(*args, **kwargs)
-            self._set_cache('_find_all', nodes)
-            return nodes
-
     def _all_tag_names(self):
-        return {t.name for t in self._find_all()}
+        return {t.name for t in self.descendants if t.name}
 
     def _all_attributes(self, name):
         # TODO: NOT IMPLEMENTED YET
@@ -222,7 +227,7 @@ class DOMTree(object):
         return str(self)
 
     def __len__(self):
-        return len(self._find_all())
+        return len(self.descendants)
 
     def __eq__(self, other):
         return self.soup == other.soup
