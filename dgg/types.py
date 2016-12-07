@@ -12,6 +12,24 @@ class Step(object):
     TYPES = (W, A, D, M)
 
     def __init__(self, type, target, name=None, content=None, attrs=None):
+        self.__validate(type, target, name, content, attrs)
+        self.type = type
+        self.target = target
+        self.name = name
+        self.content = content
+        self.attrs = attrs or {}
+
+    @property
+    def delta(self):
+        if self.type in (Step.W, Step.A):
+            return 1
+        elif self.type == Step.D:
+            return -1
+        else:
+            return 0
+
+    @classmethod
+    def __validate(self, type, target, name=None, content=None, attrs=None):
         if type not in Step.TYPES:
             raise TypeError('Invalid step type: {}'.format(type))
         if type ==Step.W and not name:
@@ -26,32 +44,6 @@ class Step(object):
                 'Modify step should contain at least one of tag name, content '
                 'or attrs'
             ))
-
-        self.type = type
-        self.target = target
-        self.name = name
-        self.content = content
-        self.attrs = attrs or {}
-
-    @property
-    def delta(self):
-        if self.type == Step.A:
-            return 1
-        elif self.type == Step.D:
-            return -1
-        else:
-            return 0
-
-    def __eq__(self, other):
-        if self.type != other.type:
-            return False
-
-        if self.type in (Step.A, Step.M):
-            return self.name == other.name and \
-                self.content == other.content and \
-                self.attrs == other.attrs
-        else:
-            return True
 
     def __str__(self):
         if self.type == Step.W:
@@ -74,6 +66,17 @@ class Step(object):
 
     def __repr__(self):
         return str(self)
+
+    def __eq__(self, other):
+        if self.type != other.type:
+            return False
+
+        if self.type in (Step.A, Step.M):
+            return self.name == other.name and \
+                self.content == other.content and \
+                self.attrs == other.attrs
+        else:
+            return True
 
 
 class DOMTree(object):
@@ -170,7 +173,10 @@ class DOMTree(object):
         # we clip target node on the maximum index.
         if target >= len(self):
             target = len(self) - 1
-        return self._find_all()[target]
+        try:
+            return self._find_all()[target]
+        except IndexError:
+            return self.soup
 
     def _find_all(self, *args, **kwargs):
         cache = self._get_cache('_find_all')
