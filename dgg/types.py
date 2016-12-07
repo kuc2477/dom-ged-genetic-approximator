@@ -1,6 +1,7 @@
 import random
 import copy
 from bs4 import BeautifulSoup, NavigableString, Tag
+from .utils import clean_soup
 
 
 class Step(object):
@@ -13,16 +14,13 @@ class Step(object):
     def __init__(self, type, target, name=None, content=None, attrs=None):
         if type not in Step.TYPES:
             raise TypeError('Invalid step type: {}'.format(type))
-
         if type ==Step.W and not name:
             raise ValueError('Wrap step requires tag name')
-
         if type == Step.A and (not name and not content):
             raise ValueError((
                 'Append step should contain at least one of tag '
                 'name or content'
             ))
-
         if type == Step.M and (not name and not content and not attrs):
             raise ValueError((
                 'Modify step should contain at least one of tag name, content '
@@ -33,7 +31,7 @@ class Step(object):
         self.target = target
         self.name = name
         self.content = content
-        self.attrs = attrs
+        self.attrs = attrs or {}
 
     @property
     def delta(self):
@@ -55,27 +53,24 @@ class Step(object):
         else:
             return True
 
-    def __mantissa(self, to=2):
-        return int(self.target * (10 ** to))
-
     def __str__(self):
         if self.type == Step.W:
             return '{}{}[{}, {}]'.format(
                 self.type,
-                self.__mantissa(),
+                self.target,
                 self.name,
                 self.attrs,
             )
         elif self.type in (Step.A, Step.M):
             return '{}{}[{},{},{}]'.format(
                 self.type, 
-                self.__mantissa(),
+                self.target,
                 self.name, 
                 self.content[:10] + '..',
                 self.attrs,
             )
         else:
-            return '{}{}'.format(self.type, self.__mantissa())
+            return '{}{}'.format(self.type, self.target)
 
     def __repr__(self):
         return str(self)
@@ -83,7 +78,7 @@ class Step(object):
 
 class DOMTree(object):
     def __init__(self, html):
-        self._soup = BeautifulSoup(html, 'html.parser')
+        self._soup = clean_soup(BeautifulSoup(html, 'html.parser'))
         self._steps_applied = []
         self._nodes_applied = []
         self._cache = {}
@@ -107,6 +102,10 @@ class DOMTree(object):
         self._nodes_applied.append(node_applied)
         self._invalidate_cache('_find_all')
         return self
+
+    @property
+    def soup(self):
+        return self._soup
 
     @property
     def steps_applied(self):
@@ -142,17 +141,21 @@ class DOMTree(object):
         return previous
 
     def _modify(self, step):
-        # TODO: MODIFY SHOULD ONLY CHANGE ATTRIBUTES, NAME or STRING CONTENT 
-        #       OF A NODE
-        tag = self._new_tag(step)
         current = self._get_tag(step.target)
         previous = copy.deepcopy(current)
-        current.replace_with(tag)
+        # modify attributes and tag name if the target has any children.
+        if current.find_all(string=False):
+            current.name = step.name
+            current.attrs = step.attrs
+        # otherwise replace the entire target with new tag.
+        else:
+            tag = self._new_tag(step)
+            current.replace_with(tag)
         return previous
 
     def _new_tag(self, step):
         if step.type not in (Step.W, Step.A, Step.M):
-            raise TypeError('We can only make new tag for A and M step')
+            raise TypeError('We can only make new tag for W, A and M step')
 
         # create new tag for the tree from the given step.
         if step.name:
@@ -163,9 +166,11 @@ class DOMTree(object):
             tag = step.content
         return tag
 
-    def _get_tag(self, percentile):
-        index = int((len(self) - 1) * percentile)
-        return self._find_all()[index]
+    def _get_tag(self, target):
+        # we clip target node on the maximum index.
+        if target >= len(self):
+            target = len(self) - 1
+        return self._find_all()[target]
 
     def _find_all(self, *args, **kwargs):
         cache = self._get_cache('_find_all')
@@ -212,3 +217,6 @@ class DOMTree(object):
 
     def __len__(self):
         return len(self._find_all())
+
+    def __eq__(self, other):
+        return self.soup == other.soup
