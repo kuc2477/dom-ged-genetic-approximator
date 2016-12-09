@@ -90,6 +90,7 @@ def mutate(seq,
 
 
 def mutate_features(seq, pb):
+    # TODO: MAYBE WE NEED TO PROVIDE DUPLICATIONS
     features = [(s.name, s.content, s.attrs) for s in seq]
     mutated_features = tools.mutShuffleIndexes(features, pb)[0]
     for step, mutated_feature in zip(seq, mutated_features):
@@ -114,7 +115,6 @@ def mutate_types(seq, pb):
             else:
                 break
     return seq
-
 
 def mutate_targets(seq, mu=0, sigma=1):
     for step in seq:

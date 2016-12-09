@@ -56,25 +56,35 @@ support@yourcompany.com</a>.
 </HTML>
 '''
 
-n = 1000
+n = 5000
 cpu_count = multiprocessing.cpu_count()
 pool = multiprocessing.Pool(cpu_count * 2)
 
-tree1 = DOMTree(html1)
-tree2 = DOMTree(html2)
-
-dumb_sequence = dumb_sequence_for(tree1, tree2)
-initial_sequences = sequences_from_dumb_sequence(dumb_sequence, n=n)
-entire_fitnesses = []
-
-start = time.time()
-def log(i):
+def log(start, i):
     print(
         'evaluating {} sequences took {} seconds'
         .format(i + 1, time.time() - start)
     )
 
+tree1 = DOMTree(html1)
+tree2 = DOMTree(html2)
+
+dumb_sequence = dumb_sequence_for(tree1, tree2)
+
+start = time.time()
+initial_sequences = sequences_from_dumb_sequence(dumb_sequence, n=n)
+print('generating {} mutants from dumb sequence took {} seconds'.format(
+    n, time.time() - start
+))
+
+entire_fitnesses = []
+valid_fitnesses = []
+
+start = time.time()
 for i, s in enumerate(initial_sequences):
-    entire_fitnesses.append(s.evaluate(html1, html2, base=dumb_sequence))
+    fitness = s.evaluate(html1, html2, base=dumb_sequence)
+    entire_fitnesses.append(fitness)
+    if fitness >= 1:
+        valid_fitnesses.append(fitness)
     if i % 50 == 0:
-        log(i)
+        log(start, i)

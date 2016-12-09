@@ -49,6 +49,9 @@ class Step(object):
             ))
 
     def __str__(self):
+        return '{}{}'.format(self.type, self.target)
+
+    def __repr__(self):
         if self.type == Step.W:
             return '{}{}[{}][{}]'.format(
                 self.type,
@@ -71,9 +74,6 @@ class Step(object):
             )
         else:
             return '{}{}'.format(self.type, self.target)
-
-    def __repr__(self):
-        return str(self)
 
     def __eq__(self, other):
         if self.type != other.type:
@@ -120,16 +120,21 @@ class Sequence(object):
             tree_to = DOMTree(html_to)
             cache[html_to] = copy.deepcopy(tree_to)
 
-        for step in self.steps:
+        # evaluate the sequence by actually running the sequence
+        for i, step in enumerate(self.steps):
             tree_from.run(step)
+            if tree_from == tree_to:
+                self._fitness = len(base) / (i + 1) if base else 1
+                break
 
-        # calculate sequence's fitness based on it's length
-        if tree_from == tree_to:
-            fitness = len(base) / len(self) if base else 1
-        else:
-            fitness = 0
+        # None fitness means the sequence has failed to change from source 
+        # html to target html
+        if self._fitness is None:
+            self._fitness = 0
 
-        self._fitness = fitness
+        # truncate unused part from the sequence
+        self._steps[:] = self._steps[:i + 1]
+
         return self._fitness
 
     def append(self, step):
@@ -170,7 +175,8 @@ class Sequence(object):
         return repr(self.steps)
 
     def __str__(self):
-        return str(self.steps)
+        stringified = [str(step) for step in self.steps]
+        return '[{}]'.format(', '.join(stringified))
 
     def __len__(self):
         return len(self.steps)
@@ -180,7 +186,6 @@ class DOMTree(object):
     def __init__(self, html):
         self._soup = clean_soup(BeautifulSoup(html, 'html.parser'))
         self._steps_applied = []
-        self._nodes_applied = []
         self._cache = {}
         self._cache_validities = {}
 
@@ -189,17 +194,16 @@ class DOMTree(object):
             return
 
         if step.type == Step.W:
-            node_applied = self._wrap(step)
+            self._wrap(step)
         elif step.type == Step.A:
-            node_applied = self._append(step)
+            self._append(step)
         elif step.type == Step.M:
-            node_applied = self._modify(step)
+            self._modify(step)
         else:
-            node_applied = self._delete(step)
+            self._delete(step)
 
         # record the step and applied node
         self._steps_applied.append(step)
-        self._nodes_applied.append(node_applied)
         self._invalidate_cache('descendants')
         return self
 
@@ -226,41 +230,33 @@ class DOMTree(object):
     def steps_applied(self):
         return self._steps_applied
 
-    @property
-    def nodes_applied(self):
-        return self._nodes_applied
-
     def _wrap(self, step):
         tag = self._new_tag(step)
         current = self._get_tag(step.target)
-        previous = copy.deepcopy(current)
-        current.wrap(tag)
-        return previous
+        if not current.parent:
+            current.append(tag)
+        else:
+            current.wrap(tag)
 
     def _append(self, step):
         tag = self._new_tag(step)
         current = self._get_tag(step.target)
-        previous = copy.deepcopy(current)
         if isinstance(current, Tag):
             current.append(tag)
         else: 
             current.insert_after(tag)
-        return previous
 
     def _delete(self, step):
         current = self._get_tag(step.target)
-        previous = copy.deepcopy(current)
         # unwrap if the target has any children.
         if isinstance(current, Tag) and current.contents and current.parent:
             current.unwrap()
         # otherwise extract the node.
         else:
             current.extract()
-        return previous
 
     def _modify(self, step):
         current = self._get_tag(step.target)
-        previous = copy.deepcopy(current)
         # modify attributes and tag name if the target has any children.
         if isinstance(current, Tag) and current.contents:
             current.name = step.name
@@ -269,7 +265,6 @@ class DOMTree(object):
         else:
             tag = self._new_tag(step)
             current.replace_with(tag)
-        return previous
 
     def _new_tag(self, step):
         if step.type not in (Step.W, Step.A, Step.M):
