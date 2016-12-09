@@ -12,12 +12,13 @@ class Step(object):
     TYPES = (W, A, D, M)
 
     def __init__(self, type, target, name=None, content=None, attrs=None):
-        self.__validate(type, target, name, content, attrs)
         self.type = type
         self.target = target
         self.name = name
         self.content = content
         self.attrs = attrs or {}
+        # validate the step.
+        self.validate()
 
     @property
     def delta(self):
@@ -28,18 +29,20 @@ class Step(object):
         else:
             return 0
 
-    @classmethod
-    def __validate(self, type, target, name=None, content=None, attrs=None):
-        if type not in Step.TYPES:
+    def validate(self):
+        if self.type not in Step.TYPES:
             raise TypeError('Invalid step type: {}'.format(type))
-        if type ==Step.W and not name:
+        if self.type ==Step.W and not self.name:
             raise ValueError('Wrap step requires tag name')
-        if type == Step.A and (not name and not content):
+        if self.type == Step.A and (not self.name and not self.content):
             raise ValueError((
                 'Append step should contain at least one of tag '
                 'name or content'
             ))
-        if type == Step.M and (not name and not content and not attrs):
+        if self.type == Step.M and (
+                not self.name and 
+                not self.content and 
+                not self.attrs):
             raise ValueError((
                 'Modify step should contain at least one of tag name, content '
                 'or attrs'
@@ -85,6 +88,94 @@ class Step(object):
             return True
 
 
+class Sequence(object):
+    __cache = {}
+
+    def __init__(self, steps=None):
+        self._steps = steps or []
+        self._fitness = None
+
+    @property
+    def steps(self):
+        return self._steps
+
+    @property
+    def fitness(self):
+        return self._fitness
+
+    def evaluate(self, html_from, html_to, base=None):
+        cache = self.__cache
+
+        # use tree from cache rather than parsing entire html
+        if html_from in cache:
+            tree_from = copy.deepcopy(cache[html_from])
+        else:
+            tree_from = DOMTree(html_from)
+            cache[html_from] = copy.deepcopy(tree_from)
+
+        # use tree from cache rather than parsing entire html
+        if html_to in cache:
+            tree_to = copy.deepcopy(cache[html_to])
+        else:
+            tree_to = DOMTree(html_to)
+            cache[html_to] = copy.deepcopy(tree_to)
+
+        for step in self.steps:
+            tree_from.run(step)
+
+        # calculate sequence's fitness based on it's length
+        if tree_from == tree_to:
+            fitness = len(base) / len(self) if base else 1
+        else:
+            fitness = 0
+
+        self._fitness = fitness
+        return self._fitness
+
+    def append(self, step):
+        self.steps.append(step)
+        self._fitness = None
+
+    def pop(self):
+        self.steps.pop()
+        self._fitness = None
+
+    def __iter__(self):
+        self.__index = 0
+        return self
+
+    def __next__(self):
+        if self.__index >= len(self.steps):
+            raise StopIteration
+        element = self.steps[self.__index]
+        self.__index += 1
+        return element
+
+    def __getitem__(self, key):
+        return self.steps[key]
+
+    def __setitem__(self, key, data):
+        self.steps[key] = data
+
+    def __delitem__(self, key):
+        del self.steps[key]
+
+    def __add__(self, other):
+        return self.steps + other
+
+    def __mul__(self, other):
+        return self.steps * other
+
+    def __repr__(self):
+        return repr(self.steps)
+
+    def __str__(self):
+        return str(self.steps)
+
+    def __len__(self):
+        return len(self.steps)
+
+
 class DOMTree(object):
     def __init__(self, html):
         self._soup = clean_soup(BeautifulSoup(html, 'html.parser'))
@@ -93,7 +184,7 @@ class DOMTree(object):
         self._cache = {}
         self._cache_validities = {}
 
-    def step_forward(self, step):
+    def run(self, step):
         if not len(self) and step.type != Step.A:
             return
 
@@ -110,6 +201,11 @@ class DOMTree(object):
         self._steps_applied.append(step)
         self._nodes_applied.append(node_applied)
         self._invalidate_cache('descendants')
+        return self
+
+    def run_sequence(self, seq):
+        for step in seq:
+            self.run(step)
         return self
 
     @property
@@ -145,14 +241,17 @@ class DOMTree(object):
         tag = self._new_tag(step)
         current = self._get_tag(step.target)
         previous = copy.deepcopy(current)
-        current.append(tag)
+        if isinstance(current, Tag):
+            current.append(tag)
+        else: 
+            current.insert_after(tag)
         return previous
 
     def _delete(self, step):
         current = self._get_tag(step.target)
         previous = copy.deepcopy(current)
         # unwrap if the target has any children.
-        if isinstance(current, Tag) and current.contents:
+        if isinstance(current, Tag) and current.contents and current.parent:
             current.unwrap()
         # otherwise extract the node.
         else:
@@ -193,17 +292,6 @@ class DOMTree(object):
             return self.descendants[target]
         except IndexError:
             return self.soup
-
-    def _all_tag_names(self):
-        return {t.name for t in self.descendants if t.name}
-
-    def _all_attributes(self, name):
-        # TODO: NOT IMPLEMENTED YET
-        pass
-
-    def _all_contents(self, name):
-        # TODO: NOT IMPLEMENTED YET
-        pass
 
     def _get_cache(self, name):
         cache = self._cache.get(name)

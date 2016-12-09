@@ -8,15 +8,6 @@ GENERATION_NUM = 50
 DISPLAY_BEST_K = 2
 
 
-class Step(object):
-    M = 'MODIFY'
-    D = 'DELETE'
-    A = 'APPEND'
-
-    def __init__(self, type, content=None):
-        self.type = type
-        self.content = content
-
 
 # TODO: CODE BELOW IS JUST A SIMPLE SKELTON FOR LATER FULL IMPLEMENTATION.
 #       FOLLOWING FUNCTIONS AND SCHEMES SHOULD BE IMLEMENTED ACCORDINGLY.

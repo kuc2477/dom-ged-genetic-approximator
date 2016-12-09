@@ -1,3 +1,6 @@
+import os
+import multiprocessing
+import time
 import random
 import requests
 from dgg.types import DOMTree, Step
@@ -53,19 +56,25 @@ support@yourcompany.com</a>.
 </HTML>
 '''
 
+n = 1000
+cpu_count = multiprocessing.cpu_count()
+pool = multiprocessing.Pool(cpu_count * 2)
+
 tree1 = DOMTree(html1)
 tree2 = DOMTree(html2)
-append_step = Step(Step.A, len(tree1), content='asdfasdfasdfasdfasdf')
-delete_step = Step(Step.D, len(tree1))
-dumb_deletion_steps = dumb_deletion_steps_for(tree1)
-dumb_creation_steps = dumb_creation_steps_for(tree2)
 
+dumb_sequence = dumb_sequence_for(tree1, tree2)
+initial_sequences = sequences_from_dumb_sequence(dumb_sequence, n=n)
+entire_fitnesses = []
 
-for s in dumb_deletion_steps:
-    tree1.step_forward(s)
+start = time.time()
+def log(i):
+    print(
+        'evaluating {} sequences took {} seconds'
+        .format(i + 1, time.time() - start)
+    )
 
-for s in dumb_creation_steps:
-    print('\n------------------\n')
-    print(tree1)
-    print(s)
-    tree1.step_forward(s)
+for i, s in enumerate(initial_sequences):
+    entire_fitnesses.append(s.evaluate(html1, html2, base=dumb_sequence))
+    if i % 50 == 0:
+        log(i)
