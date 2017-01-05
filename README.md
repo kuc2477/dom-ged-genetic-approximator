@@ -1,2 +1,2 @@
 # dom-ged-genetic-approximator
-DOM tree GED(Graph Edit Distance) approximator implemented with genetic algorithm
+DOM tree graph edit distance approximator implemented with genetic algorithm
